@@ -70,7 +70,7 @@ public class PatchTracker : ValueTracker<bool>
 {
     public Patch patch {get; set;}
 
-    public PatchTracker(string settingId, Patch patch, SettingTrackerUpdate whenUpdated=null, SettingTrackerUpdate beforeUpdated=null, bool start=true)
+    public PatchTracker(string settingId, Patch patch, TrackerUpdate<bool> whenUpdated=null, TrackerUpdate<bool> beforeUpdated=null, bool start=true)
         : base(settingId, new bool[2] {false, true}, whenUpdated, beforeUpdated, false)
     {
         this.patch = patch;
@@ -78,10 +78,12 @@ public class PatchTracker : ValueTracker<bool>
             this.Start();
     }
 
-    public new void WhenSettingUpdated(object newValue)
+    public override void WhenSettingUpdated(object newValue)
     {
+        //NoonUtility.Log(string.Format("{0}: Patch When {1}", Patch.harmony.Id, settingId));
         bool prev = this.current;
-        base.WhenSettingUpdated(newValue);
+        this.SetCurrent(newValue);
+        //NoonUtility.Log(string.Format("{0}: Values {1}, {2}", Patch.harmony.Id, prev, newValue));
         if (prev != this.current) {
             if (this.current) {
                 NoonUtility.Log(string.Format("{0}: Patching {1}, {2}", Patch.harmony.Id, patch.original, patch.patch));
@@ -101,5 +103,6 @@ public class PatchTracker : ValueTracker<bool>
                 }
             }
         }
+        this.CallWhen();
     }
 }

@@ -5,17 +5,20 @@ using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public delegate void SettingTrackerUpdate(object newValue);
+public delegate void TrackerUpdate<T>(SettingTracker<T> tracker);
 
-public class SettingTracker: ISettingSubscriber
+public class SettingTracker<T>: ISettingSubscriber
 {
-    public string settingId;
-    public SettingTrackerUpdate whenUpdated;
-    public SettingTrackerUpdate beforeUpdated;
+    public T current {get; protected set;}
+    public string settingId {get; protected set;}
+    public TrackerUpdate<T> whenUpdated {get; protected set;}
+    public TrackerUpdate<T> beforeUpdated {get; protected set;}
 
-    public SettingTracker(string settingId, SettingTrackerUpdate whenUpdated=null, SettingTrackerUpdate beforeUpdated=null, bool start=true)
+    public SettingTracker(string settingId, TrackerUpdate<T> whenUpdated=null, TrackerUpdate<T> beforeUpdated=null, bool start=true)
     {
         this.settingId = settingId;
+        this.whenUpdated = whenUpdated;
+        this.beforeUpdated = beforeUpdated;
         if (start)
             this.Start();
     }
@@ -31,26 +34,48 @@ public class SettingTracker: ISettingSubscriber
         this.WhenSettingUpdated(setting.CurrentValue);
     }
 
-    public void WhenSettingUpdated(object newValue)
+    public virtual void SetCurrent(object newValue)
     {
-        if (this.whenUpdated != null)
-            this.whenUpdated(newValue);
+        try {
+            this.current = (T) newValue;
+        } catch {
+            NoonUtility.LogWarning(string.Format("SettingTracker {0}: Unable to set current to {1}", this.settingId, newValue));
+        }
     }
 
-    public void BeforeSettingUpdated(object newValue)
+    public virtual void CallWhen()
+    {
+        if (this.whenUpdated != null)
+        {
+            this.whenUpdated(this);
+        }
+    }
+
+    public virtual void CallBefore()
     {
         if (this.beforeUpdated != null)
-            this.beforeUpdated(newValue);
+        {
+            this.beforeUpdated(this);
+        }
+    }
+
+    public virtual void WhenSettingUpdated(object newValue)
+    {
+        this.SetCurrent(newValue);
+        this.CallWhen();
+    }
+
+    public virtual void BeforeSettingUpdated(object newValue)
+    {
+        this.CallBefore();
     }
 }
 
-public class ValueTracker<T> : SettingTracker
+public class ValueTracker<T> : SettingTracker<T>
 {
     public T[] values {get; set;}
 
-    public T current {get; protected set;}
-
-    public ValueTracker(string settingId, T[] values, SettingTrackerUpdate whenUpdated=null, SettingTrackerUpdate beforeUpdated=null, bool start=true)
+    public ValueTracker(string settingId, T[] values, TrackerUpdate<T> whenUpdated=null, TrackerUpdate<T> beforeUpdated=null, bool start=true)
         : base(settingId, whenUpdated, beforeUpdated, false)
     {
         this.values = values;
@@ -58,7 +83,7 @@ public class ValueTracker<T> : SettingTracker
             this.Start();
     }
 
-    public void SetCurrent(object newValue)
+    public override void SetCurrent(object newValue)
     {
         if (!(newValue is int num))
             num = 1;
@@ -66,20 +91,14 @@ public class ValueTracker<T> : SettingTracker
         this.current = this.values[index];
     }
 
-    public new void WhenSettingUpdated(object newValue)
-    {
-        this.SetCurrent(newValue);
-        base.WhenSettingUpdated(newValue);
-    }
 }
 
-public class KeybindTracker : SettingTracker
+public class KeybindTracker : SettingTracker<Key>
 {
-    public Key key {get; private set;}
-
-    public KeybindTracker(string settingId, SettingTrackerUpdate whenUpdated=null, SettingTrackerUpdate beforeUpdated=null, bool start=true)
+    public KeybindTracker(string settingId, TrackerUpdate<Key> whenUpdated=null, TrackerUpdate<Key> beforeUpdated=null, bool start=true)
         : base(settingId, whenUpdated, beforeUpdated, false)
     {
+        this.current = Key.None;
         if (start)
             this.Start();
     }
@@ -90,16 +109,31 @@ public class KeybindTracker : SettingTracker
 		string s = num < 0 ? id : id.Substring(num + 1);
 		s = int.TryParse(s, out _) ? "Digit" + s : s;
         s = s.Length > 1 ? char.ToUpper(s[0]) + s.Substring(1) : s.ToUpper();
-		return (Key) Enum.Parse(typeof (Key), s);
+        Key ret = Key.None;
+        try {
+            ret = (Key) Enum.Parse(typeof (Key), s);
+        } catch {
+            NoonUtility.LogWarning(string.Format("Unable to parse keybind: {}", id));
+        }
+		return ret;
 	}
 
-    public new void WhenSettingUpdated(object newValue)
+    public override void SetCurrent(object newValue)
     {
-        this.key = KeybindTracker.ToKey((string) newValue);
-        base.WhenSettingUpdated(newValue);
+        this.current = KeybindTracker.ToKey((string) newValue);
     }
 
-    public bool wasPressedThisFrame => Keyboard.current[this.key].wasPressedThisFrame;
+    public bool wasPressedThisFrame()
+    {
+        if (Keyboard.current == null || this.current == Key.None)
+            return false;
+        try {
+            return Keyboard.current[this.current].wasPressedThisFrame;
+        } catch {
+            NoonUtility.LogWarning(string.Format("Unable to find key: {0}", this.current));
+        }
+        return false;
+    }
 
 }
 
