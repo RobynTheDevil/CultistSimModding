@@ -5,11 +5,15 @@ using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public abstract class SettingTracker: ISettingSubscriber
+public delegate void SettingTrackerUpdate(object newValue);
+
+public class SettingTracker: ISettingSubscriber
 {
     public string settingId;
+    public SettingTrackerUpdate whenUpdated;
+    public SettingTrackerUpdate beforeUpdated;
 
-    public SettingTracker(string settingId, bool start=true)
+    public SettingTracker(string settingId, SettingTrackerUpdate whenUpdated=null, SettingTrackerUpdate beforeUpdated=null, bool start=true)
     {
         this.settingId = settingId;
         if (start)
@@ -27,8 +31,17 @@ public abstract class SettingTracker: ISettingSubscriber
         this.WhenSettingUpdated(setting.CurrentValue);
     }
 
-    public abstract void WhenSettingUpdated(object newValue);
-    public abstract void BeforeSettingUpdated(object newValue);
+    public void WhenSettingUpdated(object newValue)
+    {
+        if (this.whenUpdated != null)
+            this.whenUpdated(newValue);
+    }
+
+    public void BeforeSettingUpdated(object newValue)
+    {
+        if (this.beforeUpdated != null)
+            this.beforeUpdated(newValue);
+    }
 }
 
 public class ValueTracker<T> : SettingTracker
@@ -37,8 +50,8 @@ public class ValueTracker<T> : SettingTracker
 
     public T current {get; protected set;}
 
-    public ValueTracker(string settingId, T[] values, bool start=true)
-        : base(settingId, false)
+    public ValueTracker(string settingId, T[] values, SettingTrackerUpdate whenUpdated=null, SettingTrackerUpdate beforeUpdated=null, bool start=true)
+        : base(settingId, whenUpdated, beforeUpdated, false)
     {
         this.values = values;
         if (start)
@@ -53,11 +66,10 @@ public class ValueTracker<T> : SettingTracker
         this.current = this.values[index];
     }
 
-    public override void BeforeSettingUpdated(object newValue) {}
-
-    public override void WhenSettingUpdated(object newValue)
+    public new void WhenSettingUpdated(object newValue)
     {
         this.SetCurrent(newValue);
+        base.WhenSettingUpdated(newValue);
     }
 }
 
@@ -65,8 +77,8 @@ public class KeybindTracker : SettingTracker
 {
     public Key key {get; private set;}
 
-    public KeybindTracker(string settingId, bool start=true)
-        : base(settingId, false)
+    public KeybindTracker(string settingId, SettingTrackerUpdate whenUpdated=null, SettingTrackerUpdate beforeUpdated=null, bool start=true)
+        : base(settingId, whenUpdated, beforeUpdated, false)
     {
         if (start)
             this.Start();
@@ -81,11 +93,10 @@ public class KeybindTracker : SettingTracker
 		return (Key) Enum.Parse(typeof (Key), s);
 	}
 
-    public override void BeforeSettingUpdated(object newValue) {}
-
-    public override void WhenSettingUpdated(object newValue)
+    public new void WhenSettingUpdated(object newValue)
     {
         this.key = KeybindTracker.ToKey((string) newValue);
+        base.WhenSettingUpdated(newValue);
     }
 
     public bool wasPressedThisFrame => Keyboard.current[this.key].wasPressedThisFrame;
