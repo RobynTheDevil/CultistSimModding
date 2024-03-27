@@ -15,12 +15,12 @@ public class Patch
 
     public void DoPatch()
     {
-        Patch.harmony.Patch(this.original, transpiler: new HarmonyMethod(this.patch));
+        harmony.Patch(this.original, transpiler: new HarmonyMethod(this.patch));
     }
 
     public void UnPatch()
     {
-        Patch.harmony.Unpatch(this.original, this.patch);
+        harmony.Unpatch(this.original, this.patch);
     }
 }
 
