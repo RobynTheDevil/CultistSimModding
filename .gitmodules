@@ -1,0 +1,21 @@
+[submodule "AlwaysShowTimers"]
+	path = AlwaysShowTimers
+	url = git@github.com:RobynTheDevil/CS-AlwaysShowTimers
+[submodule "DecimalPlaces"]
+	path = DecimalPlaces
+	url = git@github.com:CS-DecimalPlaces
+[submodule "HighlightNextDecay"]
+	path = HighlightNextDecay
+	url = git@github.com:CS-HighlightNextDecay
+[submodule "SaveMyTick"]
+	path = SaveMyTick
+	url = git@github.com:CS-SaveMyTick
+[submodule "SingleTickKeybind"]
+	path = SingleTickKeybind
+	url = git@github.com:CS-SingleTickKeybind
+[submodule "StartTheGamePaused"]
+	path = StartTheGamePaused
+	url = git@github.com:CS-StartGamePaused
+[submodule "TickPerfectSkip"]
+	path = TickPerfectSkip
+	url = git@github.com:CS-TickPerfectSkip
