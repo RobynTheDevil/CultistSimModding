@@ -10,25 +10,53 @@ public class Patch
 {
     public static Harmony harmony {get; set;}
 
-    public MethodInfo original;
+    public Type constructor;
+    public MethodBase original;
     public MethodInfo patch;
+    public bool isPatched = false;
 
     public void DoPatch()
     {
-        harmony.Patch(this.original, transpiler: new HarmonyMethod(this.patch));
+        if (this.isPatched) {
+            NoonUtility.LogWarning(string.Format("{0}: Already Patched! {1}", harmony.Id, this.patch));
+            return;
+        }
+        switch (this.patch.Name) {
+            case "Prefix":
+                harmony.Patch(this.original, prefix: new HarmonyMethod(this.patch));
+                break;
+            case "Postfix":
+                harmony.Patch(this.original, postfix: new HarmonyMethod(this.patch));
+                break;
+            case "Transpiler":
+                harmony.Patch(this.original, transpiler: new HarmonyMethod(this.patch));
+                break;
+            default:
+                NoonUtility.LogWarning(string.Format("{0}: Unknown patch {1}", harmony.Id, this.patch));
+                break;
+        }
+        this.isPatched = true;
     }
 
     public void UnPatch()
     {
+        if (!this.isPatched) {
+            NoonUtility.Log(string.Format("{0}: Unpatching Nothing {1}", harmony.Id, this.patch));
+            return;
+        }
         harmony.Unpatch(this.original, this.patch);
+        this.isPatched = false;
     }
+
+    public virtual void WhenSettingUpdated(object newValue) {}
+
 }
 
 public class PatchHelper
 {
-    public static int FindLdstrOperand(List<CodeInstruction> codes, string operand, int skip=0)
+    public static int FindLdstrOperand(List<CodeInstruction> codes, string operand, int skip=0, int start=0)
     {
-        for (int i = 0; i < codes.Count; i++)
+        for (int i = start; i < codes.Count; i++)
         {
             if (codes[i].opcode == OpCodes.Ldstr)
             {
@@ -47,9 +75,9 @@ public class PatchHelper
         return -1;
     }
 
-    public static int FindOpcode(List<CodeInstruction> codes, OpCode opcode, int skip=0)
+    public static int FindOpcode(List<CodeInstruction> codes, OpCode opcode, int skip=0, int start=0)
     {
-        for (int i = 0; i < codes.Count; i++)
+        for (int i = start; i < codes.Count; i++)
         {
             if (codes[i].opcode == opcode)
             {
@@ -62,12 +90,14 @@ public class PatchHelper
                 }
             }
         }
+        NoonUtility.LogWarning(string.Format("{0}: Unfound opcode {1}", Patch.harmony.Id, opcode));
         return -1;
     }
 }
 
 public class PatchTracker : ValueTracker<bool>
 {
+
     public Patch patch {get; set;}
 
     public PatchTracker(string settingId, Patch patch, TrackerUpdate<bool> whenUpdated=null, TrackerUpdate<bool> beforeUpdated=null, bool start=true)
@@ -80,10 +110,9 @@ public class PatchTracker : ValueTracker<bool>
 
     public override void WhenSettingUpdated(object newValue)
     {
-        //NoonUtility.Log(string.Format("{0}: Patch When {1}", Patch.harmony.Id, settingId));
+        this.patch.WhenSettingUpdated(newValue);
         bool prev = this.current;
         this.SetCurrent(newValue);
-        //NoonUtility.Log(string.Format("{0}: Values {1}, {2}", Patch.harmony.Id, prev, newValue));
         if (prev != this.current) {
             if (this.current) {
                 NoonUtility.Log(string.Format("{0}: Patching {1}, {2}", Patch.harmony.Id, patch.original, patch.patch));
@@ -106,3 +135,4 @@ public class PatchTracker : ValueTracker<bool>
         this.CallWhen();
     }
 }
+

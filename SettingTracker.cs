@@ -25,6 +25,11 @@ public class SettingTracker<T>: ISettingSubscriber
 
     public void Start()
     {
+        this.Subscribe();
+    }
+
+    public void Subscribe()
+    {
         Setting setting = Watchman.Get<Compendium>().GetEntityById<Setting>(this.settingId);
         if (setting == null)
         {
